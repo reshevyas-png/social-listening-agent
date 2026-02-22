@@ -10,9 +10,11 @@ class Platform(str, Enum):
 
 
 class AnalyzeRequest(BaseModel):
-    url: Optional[str] = Field(None, description="URL of the social media post")
+    url: Optional[str] = Field(
+        None, description="URL of the social media post", max_length=2048
+    )
     text: Optional[str] = Field(
-        None, description="Raw post text if URL not provided"
+        None, description="Raw post text if URL not provided", max_length=10000
     )
     platform: Optional[Platform] = Field(
         None, description="Force platform; auto-detected from URL if omitted"

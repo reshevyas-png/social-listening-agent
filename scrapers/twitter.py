@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 import tweepy
 from scrapers.base import BaseScraper
 from schemas import PostData, Platform
 from config import settings
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 
 class TwitterScraper(BaseScraper):
@@ -25,7 +28,10 @@ class TwitterScraper(BaseScraper):
                 expansions=["author_id"],
             )
         except tweepy.TweepyException as e:
-            raise HTTPException(502, f"Twitter API error: {str(e)}")
+            logger.error(f"Twitter API error for {url}: {e}")
+            raise HTTPException(
+                502, "Failed to fetch tweet. Please verify the URL and try again."
+            )
 
         if not response.data:
             raise HTTPException(404, "Tweet not found")

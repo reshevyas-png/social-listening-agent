@@ -1,7 +1,10 @@
+import logging
 import requests
 from scrapers.base import BaseScraper
 from schemas import PostData, Platform
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 
 class RedditScraper(BaseScraper):
@@ -18,7 +21,10 @@ class RedditScraper(BaseScraper):
             resp = requests.get(clean_url, headers=self.HEADERS, timeout=10)
             resp.raise_for_status()
         except requests.RequestException as e:
-            raise HTTPException(502, f"Failed to fetch Reddit post: {str(e)}")
+            logger.error(f"Reddit scrape failed for {url}: {e}")
+            raise HTTPException(
+                502, "Failed to fetch Reddit post. Please verify the URL and try again."
+            )
 
         data = resp.json()
 
