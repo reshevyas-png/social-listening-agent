@@ -1,7 +1,14 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from routes import health, analyze
+from routes import health, analyze, scans
+from scheduler.setup import init_scheduler, shutdown_scheduler
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -13,10 +20,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_scheduler()
+    yield
+    shutdown_scheduler()
+
+
 app = FastAPI(
     title="Social Listening Agent",
-    version="0.1.0",
+    version="0.2.0",
     docs_url="/docs",
+    lifespan=lifespan,
 )
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -34,6 +49,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(analyze.router, prefix="/api/v1")
+app.include_router(scans.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn

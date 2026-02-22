@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     claude_model: str = "claude-3-haiku-20240307"
     max_reply_tokens: int = 300
 
+    # Scheduler settings
+    scan_hour: int = 17
+    scan_minute: int = 0
+    scan_timezone: str = "America/New_York"
+    scan_max_results: int = 20
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
