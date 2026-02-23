@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     scan_timezone: str = "America/New_York"
     scan_max_results: int = 20
 
+    # Email report settings
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    report_email_to: str = "reshevyas@gmail.com"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

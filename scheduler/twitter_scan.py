@@ -145,4 +145,10 @@ async def run_twitter_scan() -> dict:
 
     filename = _save_scan_result(scan_result)
     logger.info(f"Scan complete. Saved to {filename}")
+
+    # Generate report and email
+    from scheduler.report import save_report, send_email_report
+    save_report(scan_result)
+    send_email_report(scan_result)
+
     return scan_result
