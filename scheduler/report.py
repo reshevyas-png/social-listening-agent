@@ -33,15 +33,28 @@ def build_html_report(scan_result: dict) -> str:
         draft = r.get("draft_reply") or r.get("error") or r.get("reasoning", "—")
         tweet_url = r.get("tweet_url", "#")
         author = r.get("author", "unknown")
+        followers = r.get("author_followers", 0)
+        likes = r.get("likes", 0)
+        replies_count = r.get("replies", 0)
+        rts = r.get("retweets", 0)
         tweet_text = r.get("tweet_text", "")
         if len(tweet_text) > 150:
             tweet_text = tweet_text[:150] + "..."
 
+        # Format follower count
+        if followers >= 1000000:
+            followers_str = f"{followers/1000000:.1f}M"
+        elif followers >= 1000:
+            followers_str = f"{followers/1000:.1f}K"
+        else:
+            followers_str = str(followers)
+
         reply_rows += f"""
         <tr>
             <td style="padding:8px;border:1px solid #dee2e6;text-align:center">{i}</td>
-            <td style="padding:8px;border:1px solid #dee2e6">@{author}</td>
+            <td style="padding:8px;border:1px solid #dee2e6">@{author}<br><span style="color:#6c757d;font-size:11px">{followers_str} followers</span></td>
             <td style="padding:8px;border:1px solid #dee2e6">{tweet_text}</td>
+            <td style="padding:8px;border:1px solid #dee2e6;text-align:center;font-size:11px">{likes}L {replies_count}R {rts}RT</td>
             <td style="padding:8px;border:1px solid #dee2e6;color:{status_color};font-weight:bold">{status}</td>
             <td style="padding:8px;border:1px solid #dee2e6">{draft}</td>
             <td style="padding:8px;border:1px solid #dee2e6;text-align:center">
@@ -95,9 +108,10 @@ def build_html_report(scan_result: dict) -> str:
             <tr style="background:#1da1f2;color:white">
                 <th style="padding:8px;border:1px solid #dee2e6">#</th>
                 <th style="padding:8px;border:1px solid #dee2e6">Author</th>
-                <th style="padding:8px;border:1px solid #dee2e6;width:25%">Tweet</th>
+                <th style="padding:8px;border:1px solid #dee2e6;width:22%">Tweet</th>
+                <th style="padding:8px;border:1px solid #dee2e6">Engagement</th>
                 <th style="padding:8px;border:1px solid #dee2e6">Status</th>
-                <th style="padding:8px;border:1px solid #dee2e6;width:30%">Draft Reply</th>
+                <th style="padding:8px;border:1px solid #dee2e6;width:28%">Draft Reply</th>
                 <th style="padding:8px;border:1px solid #dee2e6">Link</th>
             </tr>
         </thead>

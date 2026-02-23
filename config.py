@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     scan_minute: int = 0
     scan_timezone: str = "America/New_York"
     scan_max_results: int = 20
+    scan_max_replies: int = 15  # cap replies per scan (top engagement first)
 
     # Email report settings
     smtp_host: str = "smtp.gmail.com"
