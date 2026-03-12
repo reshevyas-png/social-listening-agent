@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from schemas import AnalyzeRequest, AnalyzeResponse, PostData
 from auth import verify_api_key
-from scrapers.detector import detect_platform, extract_post
+from scrapers.detector import extract_post
 from agent.reply_generator import generate_reply
 
 router = APIRouter(tags=["analyze"])

@@ -11,28 +11,9 @@ scheduler = AsyncIOScheduler()
 
 
 def init_scheduler():
-    from scheduler.twitter_scan import run_twitter_scan
-
-    trigger = CronTrigger(
-        hour=settings.scan_hour,
-        minute=settings.scan_minute,
-        timezone=settings.scan_timezone,
-    )
-
-    scheduler.add_job(
-        run_twitter_scan,
-        trigger=trigger,
-        id="daily_twitter_scan",
-        name="Daily Twitter Scan",
-        replace_existing=True,
-        misfire_grace_time=3600,
-    )
-
-    scheduler.start()
-    logger.info(
-        f"Scheduler started. Twitter scan at "
-        f"{settings.scan_hour:02d}:{settings.scan_minute:02d} {settings.scan_timezone}"
-    )
+    # Scheduled auto-scans disabled — all scans now run manually via the dashboard
+    # so replies always go through approval before posting.
+    logger.info("Scheduler initialized (no automatic scans — use dashboard to run scans)")
 
 
 def shutdown_scheduler():

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="flex-between mb-6">
+    <div>
+        <h1>Dashboard</h1>
+        <p class="subtitle">Your social listening agent at a glance</p>
+    </div>
+    <a href="/dashboard/runs/new" class="btn btn-primary btn-lg">New Run</a>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="number">{{ total_runs }}</div>
+        <div class="label">Total Runs</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ total_posted }}</div>
+        <div class="label">Replies Posted</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ total_personas }}</div>
+        <div class="label">Saved Personas</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ next_scan }}</div>
+        <div class="label">Next Scan</div>
+    </div>
+</div>
+
+<h2 class="mb-4">Recent Runs</h2>
+{% if recent_runs %}
+{% for run in recent_runs %}
+<div class="card">
+    <div class="card-header">
+        <div>
+            <strong>{{ run.persona_name or 'Default Persona' }}</strong>
+            <span class="text-sm text-muted" style="margin-left:8px">{{ run.created_at[:16] }}</span>
+        </div>
+        <div class="flex gap-2">
+            {% if run.status == 'complete' %}
+            <span class="badge badge-success">Complete</span>
+            {% elif run.status == 'review' %}
+            <span class="badge badge-warning">Needs Review</span>
+            {% elif run.status == 'generating' %}
+            <span class="badge badge-primary">Generating...</span>
+            {% elif run.status == 'posting' %}
+            <span class="badge badge-primary">Posting...</span>
+            {% endif %}
+            <a href="/dashboard/runs/{{ run.run_id }}" class="btn btn-outline btn-sm">View</a>
+        </div>
+    </div>
+    <div class="flex gap-3 text-sm text-muted">
+        <span>{{ run.platforms | join(', ') }}</span>
+        <span>{{ run.reply_count }} replies</span>
+        <span>{{ run.posted_count }} posted</span>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <div class="icon">&#128640;</div>
+    <p>No runs yet. Start your first run to begin listening!</p>
+    <a href="/dashboard/runs/new" class="btn btn-primary mt-4">Start First Run</a>
+</div>
+{% endif %}
+{% endblock %}

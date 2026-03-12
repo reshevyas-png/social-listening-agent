@@ -1,0 +1,95 @@
+<div class="reply-card {% if reply.approval == 'approved' %}approved{% elif reply.approval == 'rejected' %}rejected{% endif %}{% if reply.posted %} posted{% endif %}"
+     id="reply-{{ reply.index }}">
+    <div class="source flex-between">
+        <div>
+            <span class="badge badge-{% if reply.source_platform == 'twitter' %}primary{% elif reply.source_platform == 'reddit' %}warning{% else %}muted{% endif %}">{{ reply.source_platform }}</span>
+            <strong>@{{ reply.source_author }}</strong>
+            {% if reply.engagement %}
+            <span class="text-sm text-muted" style="margin-left:8px">
+                {{ reply.engagement.get('likes', 0) }}L
+                {{ reply.engagement.get('replies', 0) }}R
+                {% if reply.engagement.get('followers') %}
+                &middot; {{ reply.engagement.followers }}F
+                {% endif %}
+            </span>
+            {% endif %}
+        </div>
+        <div>
+            {% if reply.posted %}
+            <span class="badge badge-primary">Posted</span>
+            {% elif reply.post_error %}
+            <span class="badge badge-danger" title="{{ reply.post_error }}">Failed</span>
+            {% elif reply.approval == 'approved' %}
+            <span class="badge badge-success">Approved</span>
+            {% elif reply.approval == 'rejected' %}
+            <span class="badge badge-danger">Rejected</span>
+            {% else %}
+            <span class="badge badge-muted">Pending</span>
+            {% endif %}
+            <a href="{{ reply.source_url }}" target="_blank" class="text-sm" style="margin-left:6px">View</a>
+        </div>
+    </div>
+
+    <div class="original">{{ reply.source_text[:250] }}{% if reply.source_text|length > 250 %}...{% endif %}</div>
+
+    {% if reply.draft_reply %}
+    <div class="draft" id="draft-{{ reply.index }}">
+        {{ reply.edited_reply or reply.draft_reply }}
+    </div>
+    {% endif %}
+
+    {% if not reply.posted and reply.draft_reply %}
+    <div class="actions" id="actions-{{ reply.index }}">
+        {% if reply.approval != 'approved' %}
+        <button class="btn btn-success btn-sm"
+                hx-patch="/dashboard/runs/{{ run.run_id }}/replies/{{ reply.index }}"
+                hx-vals='{"approval": "approved"}'
+                hx-target="#reply-{{ reply.index }}"
+                hx-swap="outerHTML">Approve</button>
+        {% endif %}
+        {% if reply.approval != 'rejected' %}
+        <button class="btn btn-danger btn-sm"
+                hx-patch="/dashboard/runs/{{ run.run_id }}/replies/{{ reply.index }}"
+                hx-vals='{"approval": "rejected"}'
+                hx-target="#reply-{{ reply.index }}"
+                hx-swap="outerHTML">Reject</button>
+        {% endif %}
+        <button class="btn btn-outline btn-sm"
+                onclick="toggleEdit({{ reply.index }})">Edit</button>
+        {% if reply.source_platform != 'twitter' %}
+        <button class="btn btn-outline btn-sm"
+                onclick="copyReply({{ reply.index }})">Copy</button>
+        {% endif %}
+    </div>
+
+    <form id="edit-form-{{ reply.index }}" class="hidden mt-4"
+          hx-patch="/dashboard/runs/{{ run.run_id }}/replies/{{ reply.index }}"
+          hx-target="#reply-{{ reply.index }}"
+          hx-swap="outerHTML">
+        <textarea name="edited_reply" rows="3" style="margin-bottom:8px">{{ reply.edited_reply or reply.draft_reply }}</textarea>
+        <input type="hidden" name="approval" value="{{ reply.approval or 'approved' }}">
+        <div class="flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="toggleEdit({{ reply.index }})">Cancel</button>
+        </div>
+    </form>
+    {% endif %}
+
+    {% if reply.reasoning %}
+    <div class="reasoning">{{ reply.reasoning }}</div>
+    {% endif %}
+</div>
+
+<script>
+function toggleEdit(idx) {
+    const form = document.getElementById('edit-form-' + idx);
+    form.classList.toggle('hidden');
+}
+function copyReply(idx) {
+    const draft = document.getElementById('draft-' + idx);
+    navigator.clipboard.writeText(draft.innerText.trim());
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+}
+</script>

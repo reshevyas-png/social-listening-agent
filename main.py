@@ -3,8 +3,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from routes import health, analyze, scans
+from routes.dashboard import router as dashboard_router
+from routes.leads import router as leads_router
+from routes.media import router as media_router
 from scheduler.setup import init_scheduler, shutdown_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -42,16 +46,22 @@ app.add_middleware(
         "https://localtechedge.com",
         "https://ai-agent-md.com",
         "http://localhost:3000",
+        "http://localhost:8000",
     ],
-    allow_methods=["POST", "GET"],
+    allow_methods=["POST", "GET", "PATCH", "DELETE", "PUT"],
     allow_headers=["X-API-Key", "Content-Type"],
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(health.router)
 app.include_router(analyze.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
+app.include_router(leads_router, prefix="/api/v1")
+app.include_router(media_router, prefix="/api/v1")
+app.include_router(dashboard_router)
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}New Run{% endblock %}
+{% block content %}
+<h1 class="mb-4">Configure New Run</h1>
+
+<form method="POST" action="/dashboard/runs/start" class="card">
+    <div class="form-group">
+        <label>Select Persona</label>
+        <div class="hint">Choose a saved persona or create a new one</div>
+        {% if personas %}
+        <div style="margin-bottom:12px">
+        {% for p in personas %}
+            <div class="persona-card {% if p.is_default %}selected{% endif %}" onclick="selectPersona(this, '{{ p.id }}')">
+                <div class="name">{{ p.name }}</div>
+                <div class="meta">
+                    <span>{{ p.tone | capitalize }}</span>
+                    <span>{{ p.platforms | join(', ') }}</span>
+                    {% if p.topics %}<span>Topics: {{ p.topics[:50] }}{% if p.topics|length > 50 %}...{% endif %}</span>{% endif %}
+                    {% if p.min_followers and 'twitter' in p.platforms %}<span>{{ "{:,}".format(p.min_followers) }}+ followers</span>{% endif %}
+                    {% if p.max_replies %}<span>Top {{ p.max_replies }} posts</span>{% endif %}
+                    {% if p.product_name and p.product_name.lower() not in ('nothing', 'none', '-') %}<span>{{ p.product_name }}</span>{% endif %}
+                </div>
+            </div>
+        {% endfor %}
+        </div>
+        <input type="hidden" name="persona_id" id="persona_id_input" value="{% for p in personas %}{% if p.is_default %}{{ p.id }}{% endif %}{% endfor %}">
+        {% else %}
+        <div class="empty-state" style="padding:20px">
+            <p>No personas saved. <a href="/dashboard/personas/new">Create one first</a>.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label>Override Platforms (optional)</label>
+        <div class="hint">Leave unchecked to use persona's platform settings</div>
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" name="platforms" value="twitter">
+                X / Twitter
+            </label>
+            <label>
+                <input type="checkbox" name="platforms" value="reddit">
+                Reddit
+            </label>
+            <label>
+                <input type="checkbox" name="platforms" value="linkedin">
+                LinkedIn
+            </label>
+            <label>
+                <input type="checkbox" name="platforms" value="nextdoor">
+                Nextdoor
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Schedule</label>
+        <div class="hint">When should this run?</div>
+        <div class="tone-grid" style="grid-template-columns: repeat(2, 1fr)">
+            <label class="tone-option">
+                <input type="radio" name="schedule" value="manual" checked>
+                <span>Run Now (Manual)</span>
+            </label>
+            <label class="tone-option">
+                <input type="radio" name="schedule" value="daily">
+                <span>Daily at 5 PM</span>
+            </label>
+            <label class="tone-option">
+                <input type="radio" name="schedule" value="biweekly">
+                <span>Twice a Week</span>
+            </label>
+            <label class="tone-option">
+                <input type="radio" name="schedule" value="always">
+                <span>Always Scan</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="flex gap-2 mt-6">
+        <button type="submit" id="start-btn" class="btn btn-primary btn-lg" {% if not personas %}disabled title="Create a persona first"{% endif %}>
+            Start Run
+        </button>
+        <a href="/dashboard" class="btn btn-outline btn-lg">Cancel</a>
+    </div>
+</form>
+
+<script>
+function selectPersona(card, id) {
+    document.querySelectorAll('.persona-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    document.getElementById('persona_id_input').value = id;
+}
+
+// Auto-select first persona if none is default
+if (!document.getElementById('persona_id_input').value) {
+    const first = document.querySelector('.persona-card');
+    if (first) first.click();
+}
+
+// Loading state on form submit
+document.querySelector('form').addEventListener('submit', function() {
+    var btn = document.getElementById('start-btn');
+    btn.classList.add('loading');
+    btn.innerHTML = '<span class="spinner spinner-sm"></span> Starting scan...';
+});
+</script>
+{% endblock %}

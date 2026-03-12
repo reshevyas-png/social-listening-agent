@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - Social Listening Agent</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav>
+        <a href="/dashboard" class="brand">Social Agent</a>
+        <a href="/dashboard" class="{% if active == 'dashboard' %}active{% endif %}">Dashboard</a>
+        <a href="/dashboard/runs/new" class="{% if active == 'runs' %}active{% endif %}">New Run</a>
+        <a href="/dashboard/personas" class="{% if active == 'personas' %}active{% endif %}">Personas</a>
+        <a href="/dashboard/leads" class="{% if active == 'leads' %}active{% endif %}">🤝 Leads</a>
+        <a href="/dashboard/media" class="{% if active == 'media' %}active{% endif %}">📸 Media</a>
+        <a href="/dashboard/history" class="{% if active == 'history' %}active{% endif %}">History</a>
+        <span class="spacer"></span>
+        <a href="/dashboard/logout" class="logout">Logout</a>
+    </nav>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

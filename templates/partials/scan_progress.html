@@ -1,0 +1,31 @@
+{% if status == 'generating' %}
+<div style="text-align:center;padding:20px 0">
+    <div class="spinner"></div>
+    <h3 style="margin-top:16px">Scanning & Generating Replies...</h3>
+    <p class="text-sm text-muted" style="margin-top:8px">{{ progress_text }}</p>
+    <div class="progress-bar" style="margin-top:16px">
+        <div class="fill" style="width:{{ progress_pct }}%"></div>
+    </div>
+    <p class="text-sm text-muted" style="margin-top:8px">{{ progress_pct }}% complete</p>
+</div>
+{% elif status == 'review' %}
+<script>window.location.href = '/dashboard/runs/{{ run_id }}';</script>
+{% elif status == 'posting' %}
+<div style="text-align:center;padding:20px 0">
+    <div class="spinner"></div>
+    <h3 style="margin-top:16px">Posting Approved Replies...</h3>
+    <p class="text-sm text-muted" style="margin-top:8px">{{ progress_text }}</p>
+    <div class="progress-bar" style="margin-top:16px">
+        <div class="fill" style="width:{{ progress_pct }}%"></div>
+    </div>
+    <p class="text-sm text-muted" style="margin-top:8px">Adding random delays between posts to look natural.</p>
+</div>
+{% elif status == 'complete' %}
+<script>window.location.href = '/dashboard/runs/{{ run_id }}';</script>
+{% elif status in ('error', 'failed') %}
+<div style="text-align:center;padding:20px 0">
+    <h3 style="color:var(--danger)">Scan Failed</h3>
+    <p class="text-sm" style="margin-top:8px">{{ error_message }}</p>
+    <a href="/dashboard/runs/new" class="btn btn-primary mt-4">Try Again</a>
+</div>
+{% endif %}

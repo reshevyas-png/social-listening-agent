@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if persona else 'New' }} Persona{% endblock %}
+{% block content %}
+<h1 class="mb-4">{{ 'Edit' if persona else 'Create' }} Persona</h1>
+
+<form method="POST" action="/dashboard/personas{% if persona %}/{{ persona.id }}{% endif %}" class="card">
+    {% if persona %}
+    <input type="hidden" name="_method" value="PUT">
+    {% endif %}
+
+    <div class="form-group">
+        <label for="name">Persona Name</label>
+        <div class="hint">Who are you today? e.g., "Next Door Tech Consultant"</div>
+        <input type="text" id="name" name="name" value="{{ persona.name if persona else '' }}" placeholder="e.g. AI Dev Advocate, Local Tech Helper" required>
+    </div>
+
+    <div class="form-group">
+        <label for="topics">Topics to Scan</label>
+        <div class="hint">What should we search for? Comma-separated keywords/phrases. Leave blank for general AI topics.</div>
+        <textarea id="topics" name="topics" rows="2" placeholder="e.g. tennis, US Open, Rafael Nadal&#10;e.g. startup funding, YC, seed round&#10;e.g. AI agents, prompt engineering, LLM">{{ persona.topics if persona else '' }}</textarea>
+    </div>
+
+    <div class="form-group">
+        <label for="subreddits">Subreddits (optional)</label>
+        <div class="hint">Comma-separated subreddit names for Reddit scanning. Leave blank for defaults.</div>
+        <input type="text" id="subreddits" name="subreddits" value="{{ persona.subreddits if persona else '' }}" placeholder="e.g. tennis, sports, worldnews, technology">
+    </div>
+
+    <div class="form-group">
+        <label for="target_audience">Target Audience</label>
+        <div class="hint">Who are you trying to reach?</div>
+        <textarea id="target_audience" name="target_audience" placeholder="e.g. sports fans, small business owners, developers" required>{{ persona.target_audience if persona else '' }}</textarea>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+        <div class="form-group">
+            <label for="min_followers">Min Followers</label>
+            <div class="hint">Only reply to accounts with at least this many followers — Twitter only (0 = no filter)</div>
+            <input type="text" id="min_followers" name="min_followers" value="{{ persona.min_followers if persona else '0' }}" placeholder="e.g. 5000000">
+        </div>
+        <div class="form-group">
+            <label for="max_replies">Max Replies per Run</label>
+            <div class="hint">How many posts to reply to per run</div>
+            <input type="text" id="max_replies" name="max_replies" value="{{ persona.max_replies if persona else '15' }}" placeholder="e.g. 5">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Tone</label>
+        <div class="hint">How should your replies sound?</div>
+        <div class="tone-grid" style="grid-template-columns: repeat(3, 1fr)">
+            {% for tone in ['helpful', 'empathetic', 'human-like', 'intellectual', 'blunt', 'viral', 'angry', 'casual', 'sad', 'funny', 'sarcastic', 'wholesome'] %}
+            <label class="tone-option">
+                <input type="radio" name="tone" value="{{ tone }}" {% if persona and persona.tone == tone %}checked{% elif not persona and tone == 'helpful' %}checked{% endif %}>
+                <span>{{ tone | capitalize }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>Platforms</label>
+        <div class="hint">Which platforms should this persona target?</div>
+        <div class="checkbox-group">
+            {% set selected_platforms = persona.platforms if persona else ['twitter'] %}
+            <label>
+                <input type="checkbox" name="platforms" value="twitter" {% if 'twitter' in selected_platforms %}checked{% endif %}>
+                X / Twitter
+            </label>
+            <label>
+                <input type="checkbox" name="platforms" value="reddit" {% if 'reddit' in selected_platforms %}checked{% endif %}>
+                Reddit
+            </label>
+            <label>
+                <input type="checkbox" name="platforms" value="linkedin" {% if 'linkedin' in selected_platforms %}checked{% endif %}>
+                LinkedIn
+            </label>
+            <label>
+                <input type="checkbox" name="platforms" value="nextdoor" {% if 'nextdoor' in selected_platforms %}checked{% endif %}>
+                Nextdoor
+            </label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="product_name">Product Name</label>
+        <div class="hint">What are you promoting?</div>
+        <input type="text" id="product_name" name="product_name" value="{{ persona.product_name if persona else 'ai-agent-md' }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="product_url">Product URL</label>
+        <div class="hint">Casual link to drop (no https://)</div>
+        <input type="text" id="product_url" name="product_url" value="{{ persona.product_url if persona else 'ai-agent-md.com' }}" required>
+    </div>
+
+    <div class="form-group">
+        <label for="custom_instructions">Custom Instructions (optional)</label>
+        <div class="hint">Any extra rules for the AI when using this persona</div>
+        <textarea id="custom_instructions" name="custom_instructions" rows="3" placeholder="e.g. Focus on local businesses, mention free consultations">{{ persona.custom_instructions if persona else '' }}</textarea>
+    </div>
+
+    <hr style="margin:24px 0">
+    <h3 style="margin-bottom:12px">📸 Reply Attachments (Optional)</h3>
+    <div class="hint" style="margin-bottom:16px">Attach a product screenshot or demo video to all replies from this persona</div>
+
+    <div class="form-group">
+        <label for="attachment_path">Select Media File</label>
+        <div class="hint">Choose from uploaded media files. <a href="/dashboard/media" target="_blank">Upload new media →</a></div>
+        <select id="attachment_path" name="attachment_path" style="margin-bottom:8px">
+            <option value="">None</option>
+            <option disabled>──────────────────────────</option>
+        </select>
+    </div>
+
+    <div id="attachment-preview" style="display:none; margin-top:16px; padding:12px; background:#f5f5f5; border-radius:8px">
+        <p style="font-size:12px; margin:0 0 8px 0"><strong>Preview:</strong></p>
+        <img id="preview-img" src="" alt="Preview" style="max-width:100%; max-height:200px; border-radius:4px">
+    </div>
+
+    <div class="form-group">
+        <label>
+            <input type="checkbox" name="is_default" {% if persona and persona.is_default %}checked{% endif %} style="width:auto;margin-right:6px">
+            Set as default persona
+        </label>
+    </div>
+
+    <div class="flex gap-2 mt-4">
+        <button type="submit" class="btn btn-primary">{{ 'Save Changes' if persona else 'Create Persona' }}</button>
+        <a href="/dashboard/personas" class="btn btn-outline">Cancel</a>
+    </div>
+</form>
+
+<script>
+// Load media files and populate dropdown
+document.addEventListener('DOMContentLoaded', async () => {
+    const select = document.getElementById('attachment_path');
+    const currentValue = '{{ persona.attachment_path if persona else "" }}';
+
+    try {
+        const response = await fetch('/dashboard/api/media');
+        const files = await response.json();
+
+        // Populate dropdown
+        if (files.length > 0) {
+            const divider = select.querySelector('[disabled]');
+            files.forEach(file => {
+                const option = document.createElement('option');
+                option.value = file.path;
+                option.textContent = file.filename;
+                select.appendChild(option);
+            });
+        }
+
+        // Restore selected value
+        if (currentValue) {
+            select.value = currentValue;
+            updatePreview();
+        }
+    } catch (e) {
+        console.error('Failed to load media files:', e);
+    }
+});
+
+// Update preview when selection changes
+document.getElementById('attachment_path').addEventListener('change', updatePreview);
+
+function updatePreview() {
+    const select = document.getElementById('attachment_path');
+    const preview = document.getElementById('attachment-preview');
+    const previewImg = document.getElementById('preview-img');
+
+    if (select.value && select.value.endsWith('.png') || select.value.endsWith('.jpg') || select.value.endsWith('.jpeg') || select.value.endsWith('.gif') || select.value.endsWith('.webp')) {
+        previewImg.src = select.value;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

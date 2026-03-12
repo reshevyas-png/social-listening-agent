@@ -28,8 +28,18 @@ def build_html_report(scan_result: dict) -> str:
     # Build reply rows
     reply_rows = ""
     for i, r in enumerate(results, 1):
-        status = "Error" if r.get("error") else ("Skipped" if r.get("skip") else "Reply Ready")
-        status_color = "#dc3545" if r.get("error") else ("#6c757d" if r.get("skip") else "#28a745")
+        if r.get("error"):
+            status = "Error"
+            status_color = "#dc3545"
+        elif r.get("skip"):
+            status = "Skipped"
+            status_color = "#6c757d"
+        elif r.get("posted"):
+            status = "Posted"
+            status_color = "#1da1f2"
+        else:
+            status = "Draft"
+            status_color = "#28a745"
         draft = r.get("draft_reply") or r.get("error") or r.get("reasoning", "—")
         tweet_url = r.get("tweet_url", "#")
         author = r.get("author", "unknown")
@@ -83,8 +93,14 @@ def build_html_report(scan_result: dict) -> str:
         <tr>
             <td style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6"><strong>Tweets Found</strong></td>
             <td style="padding:10px;border:1px solid #dee2e6">{total}</td>
+            <td style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6"><strong>Replies Posted</strong></td>
+            <td style="padding:10px;border:1px solid #dee2e6;color:#1da1f2;font-weight:bold">{scan_result.get('replies_posted', 0)}</td>
+        </tr>
+        <tr>
             <td style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6"><strong>New (not seen before)</strong></td>
             <td style="padding:10px;border:1px solid #dee2e6">{new}</td>
+            <td style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6"><strong>Auto-Post</strong></td>
+            <td style="padding:10px;border:1px solid #dee2e6">{'ON' if scan_result.get('auto_post_enabled') else 'OFF (draft only)'}</td>
         </tr>
         <tr>
             <td style="padding:10px;background:#f8f9fa;border:1px solid #dee2e6"><strong>Replies Generated</strong></td>

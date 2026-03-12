@@ -50,6 +50,6 @@ class TwitterScraper(BaseScraper):
         )
 
     @staticmethod
-    def _extract_tweet_id(url: str) -> str | None:
+    def _extract_tweet_id(url: str) -> Optional[str]:
         match = re.search(r"/status/(\d+)", url)
         return match.group(1) if match else None

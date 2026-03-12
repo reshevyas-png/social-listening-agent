@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Social Listening Agent</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="login-container">
+        <h1>Social Listening Agent</h1>
+        <div class="card">
+            {% if error %}
+            <p class="error">{{ error }}</p>
+            {% endif %}
+            <form method="POST" action="/dashboard/login">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your API key" required autofocus>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" style="width:100%">Login</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

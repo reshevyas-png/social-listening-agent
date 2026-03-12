@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block title %}Leads & Stargazers{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="margin:0">🤝 Leads & Stargazers</h1>
+    <div style="display:flex; gap:8px">
+        <input type="text" id="search-input" placeholder="Search by name, company..." style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px">
+        <select id="status-filter" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:14px">
+            <option value="">All Status</option>
+            <option value="new">New</option>
+            <option value="contacted">Contacted</option>
+            <option value="qualified">Qualified</option>
+            <option value="disqualified">Disqualified</option>
+        </select>
+    </div>
+</div>
+
+<div class="hint" style="margin-bottom:20px">
+    View and manage GitHub stargazers. Generate personalized cold outreach emails, edit them, and export for sending.
+</div>
+
+<div id="leads-container" style="display:grid; grid-template-columns:1fr; gap:12px">
+    <div style="text-align:center; padding:40px; color:#999">Loading leads...</div>
+</div>
+
+<!-- Email Modal -->
+<div id="email-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto">
+    <div style="background:white; margin:40px auto; max-width:800px; border-radius:8px; max-height:90vh; overflow-y:auto">
+        <div style="padding:24px; border-bottom:1px solid #eee">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+                <h2 style="margin:0; font-size:20px">Email for <span id="modal-lead-name"></span></h2>
+                <button onclick="closeEmailModal()" style="background:none; border:none; font-size:24px; cursor:pointer">✕</button>
+            </div>
+        </div>
+
+        <div style="padding:24px">
+            <div style="margin-bottom:16px">
+                <div style="display:flex; gap:8px; margin-bottom:12px">
+                    <button id="btn-regenerate" onclick="regenerateEmail()" style="padding:8px 16px; background:#0f766e; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500">🔄 Regenerate</button>
+                    <button id="btn-copy" onclick="copyEmail()" style="padding:8px 16px; background:#6366f1; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500">📋 Copy</button>
+                    <button id="btn-download" onclick="downloadEmail()" style="padding:8px 16px; background:#7c3aed; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500">⬇ Download</button>
+                    <button id="btn-save" onclick="saveEmail()" style="padding:8px 16px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500; display:none">✓ Save Changes</button>
+                </div>
+            </div>
+
+            <textarea id="email-text" rows="20" style="width:100%; padding:12px; border:1px solid #ddd; border-radius:6px; font-family:monospace; font-size:13px; resize:vertical" readonly></textarea>
+
+            <div style="margin-top:16px; padding:12px; background:#f5f5f5; border-radius:6px; font-size:12px; color:#666">
+                <p style="margin:0 0 4px 0"><strong>Lead Info:</strong></p>
+                <p style="margin:0"><span id="modal-lead-bio"></span></p>
+            </div>
+        </div>
+
+        <div style="padding:16px; border-top:1px solid #eee; display:flex; gap:8px; justify-content:flex-end">
+            <button onclick="closeEmailModal()" style="padding:8px 16px; background:#f0f0f0; border:1px solid #ddd; border-radius:6px; cursor:pointer">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.lead-card {
+    padding: 16px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: white;
+    transition: all 0.2s;
+}
+.lead-card:hover {
+    border-color: #0f766e;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.lead-card header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 12px;
+}
+.lead-card h3 {
+    margin: 0;
+    font-size: 16px;
+}
+.lead-card .meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    font-size: 13px;
+    margin: 12px 0;
+    color: #666;
+}
+.lead-card .status-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.status-new { background: #dbeafe; color: #0369a1; }
+.status-contacted { background: #fef3c7; color: #92400e; }
+.status-qualified { background: #dcfce7; color: #15803d; }
+.status-disqualified { background: #fee2e2; color: #991b1b; }
+.lead-card .actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+}
+.lead-card button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+}
+.btn-email { background: #0f766e; color: white; }
+.btn-email:hover { background: #115e59; }
+.btn-edit { background: #6366f1; color: white; }
+.btn-edit:hover { background: #4f46e5; }
+</style>
+
+<script>
+let allLeads = [];
+let currentLeadId = null;
+let emailEditing = false;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadLeads();
+    document.getElementById('search-input').addEventListener('input', filterLeads);
+    document.getElementById('status-filter').addEventListener('change', filterLeads);
+});
+
+async function loadLeads() {
+    try {
+        const response = await fetch('/dashboard/api/leads');
+        const data = await response.json();
+        allLeads = data.leads;
+        renderLeads(allLeads);
+    } catch (e) {
+        console.error('Failed to load leads:', e);
+        document.getElementById('leads-container').innerHTML = `
+            <div style="padding:40px; text-align:center; color:#c00">
+                Error loading leads: ${e.message}
+            </div>
+        `;
+    }
+}
+
+function filterLeads() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const status = document.getElementById('status-filter').value;
+
+    let filtered = allLeads;
+
+    if (search) {
+        filtered = filtered.filter(l =>
+            (l.name || '').toLowerCase().includes(search) ||
+            (l.company || '').toLowerCase().includes(search) ||
+            (l.github_login || '').toLowerCase().includes(search)
+        );
+    }
+
+    if (status) {
+        filtered = filtered.filter(l => (l.status || 'new') === status);
+    }
+
+    renderLeads(filtered);
+}
+
+function renderLeads(leads) {
+    const container = document.getElementById('leads-container');
+
+    if (leads.length === 0) {
+        container.innerHTML = `
+            <div style="padding:40px; text-align:center; color:#999">
+                <p style="font-size:48px; margin:0">🤝</p>
+                <p style="margin:12px 0 0 0">No leads found</p>
+                <p style="margin:8px 0; font-size:14px; color:#ccc">Sync stargazers from GitHub to get started</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = leads.map(lead => `
+        <div class="lead-card">
+            <header>
+                <div>
+                    <h3>${lead.name || lead.github_login}</h3>
+                    <div style="font-size:12px; color:#666; margin-top:4px">
+                        ${lead.github_login ? `<a href="https://github.com/${lead.github_login}" target="_blank" style="color:#0f766e; text-decoration:none">@${lead.github_login}</a>` : ''}
+                    </div>
+                </div>
+                <span class="status-badge status-${lead.status || 'new'}" onclick="changeStatus('${lead.id}')">
+                    ${lead.status || 'new'}
+                </span>
+            </header>
+
+            <div class="meta">
+                ${lead.company ? `<div><strong>Company:</strong> ${lead.company}</div>` : ''}
+                ${lead.followers ? `<div><strong>Followers:</strong> ${lead.followers.toLocaleString()}</div>` : ''}
+                ${lead.email ? `<div><strong>Email:</strong> ${lead.email}</div>` : ''}
+                ${lead.twitter_username ? `<div><strong>Twitter:</strong> @${lead.twitter_username}</div>` : ''}
+            </div>
+
+            ${lead.bio ? `<div style="font-size:13px; color:#666; margin:8px 0">${lead.bio}</div>` : ''}
+
+            <div class="actions">
+                <button class="btn-email" onclick="showEmailModal('${lead.id}')">
+                    ${lead.draft_email ? '✏ Edit Email' : '✍ Generate Email'}
+                </button>
+                ${lead.draft_email ? `
+                    <button class="btn-edit" onclick="downloadLeadEmail('${lead.id}')">⬇ Download</button>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function showEmailModal(leadId) {
+    currentLeadId = leadId;
+    emailEditing = false;
+
+    const lead = allLeads.find(l => l.id === leadId);
+    if (!lead) return;
+
+    document.getElementById('modal-lead-name').textContent = lead.name || lead.github_login;
+    document.getElementById('modal-lead-bio').textContent = lead.bio || (lead.company ? `Works at ${lead.company}` : 'No bio');
+
+    if (lead.draft_email) {
+        document.getElementById('email-text').value = lead.draft_email;
+        document.getElementById('email-text').removeAttribute('readonly');
+        document.getElementById('btn-save').style.display = 'inline-block';
+        document.getElementById('email-text').addEventListener('input', () => {
+            emailEditing = true;
+        });
+    } else {
+        document.getElementById('email-text').value = 'Generating email...';
+        document.getElementById('email-text').setAttribute('readonly', 'readonly');
+        document.getElementById('btn-save').style.display = 'none';
+        await generateEmailForLead(leadId);
+    }
+
+    document.getElementById('email-modal').style.display = 'block';
+}
+
+function closeEmailModal() {
+    document.getElementById('email-modal').style.display = 'none';
+    currentLeadId = null;
+    emailEditing = false;
+}
+
+async function generateEmailForLead(leadId) {
+    try {
+        const response = await fetch(`/dashboard/api/leads/${leadId}/generate-email`, {
+            method: 'POST',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error);
+        }
+
+        const data = await response.json();
+        document.getElementById('email-text').value = data.email;
+        document.getElementById('email-text').removeAttribute('readonly');
+        document.getElementById('btn-save').style.display = 'inline-block';
+        emailEditing = false;
+
+        // Reload leads to update the UI
+        await loadLeads();
+    } catch (e) {
+        alert('Error generating email: ' + e.message);
+        console.error(e);
+    }
+}
+
+async function regenerateEmail() {
+    if (!currentLeadId) return;
+    document.getElementById('email-text').value = 'Regenerating email...';
+    document.getElementById('email-text').setAttribute('readonly', 'readonly');
+    emailEditing = false;
+    await generateEmailForLead(currentLeadId);
+}
+
+function copyEmail() {
+    const text = document.getElementById('email-text').value;
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Email copied to clipboard!');
+    });
+}
+
+function downloadEmail() {
+    const lead = allLeads.find(l => l.id === currentLeadId);
+    if (!lead) return;
+
+    const text = document.getElementById('email-text').value;
+    const filename = `email-${lead.github_login || lead.name}-${new Date().toISOString().split('T')[0]}.txt`;
+
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+async function saveEmail() {
+    if (!currentLeadId) return;
+
+    const email = document.getElementById('email-text').value;
+    if (!email.trim()) {
+        alert('Email cannot be empty');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/dashboard/api/leads/${currentLeadId}/save-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error);
+        }
+
+        alert('Email saved!');
+        emailEditing = false;
+        document.getElementById('btn-save').style.display = 'none';
+        await loadLeads();
+    } catch (e) {
+        alert('Error saving email: ' + e.message);
+    }
+}
+
+async function changeStatus(leadId) {
+    const lead = allLeads.find(l => l.id === leadId);
+    if (!lead) return;
+
+    const statuses = ['new', 'contacted', 'qualified', 'disqualified'];
+    const currentIdx = statuses.indexOf(lead.status || 'new');
+    const newStatus = statuses[(currentIdx + 1) % statuses.length];
+
+    try {
+        const response = await fetch(`/dashboard/api/leads/${leadId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update status');
+        }
+
+        lead.status = newStatus;
+        filterLeads();
+    } catch (e) {
+        alert('Error updating status: ' + e.message);
+    }
+}
+
+function downloadLeadEmail(leadId) {
+    const lead = allLeads.find(l => l.id === leadId);
+    if (!lead || !lead.draft_email) return;
+
+    const text = lead.draft_email;
+    const filename = `email-${lead.github_login || lead.name}-${new Date().toISOString().split('T')[0]}.txt`;
+
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// Close modal when clicking outside
+window.onclick = (event) => {
+    const modal = document.getElementById('email-modal');
+    if (event.target === modal) {
+        closeEmailModal();
+    }
+};
+</script>
+
+{% endblock %}

@@ -41,7 +41,7 @@ def validate_url(url: str, platform: Platform) -> None:
         )
 
 
-async def extract_post(url: str, forced_platform: Platform | None = None) -> PostData:
+async def extract_post(url: str, forced_platform: Optional[Platform] = None) -> PostData:
     from scrapers.reddit import RedditScraper
     from scrapers.twitter import TwitterScraper
     from scrapers.linkedin import LinkedInScraper

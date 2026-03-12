@@ -1,31 +1,35 @@
 # Social Listening & Value-Add Agent
 
 ## Role
+Social media automation agent that scans Twitter, Reddit, and LinkedIn for posts matching configurable topics, generates human-sounding replies using AI personas, and auto-posts approved replies. Built for growing audience engagement across multiple platforms with different personas and tones.
 
-You are a developer working on Social Listening & Value-Add Agent — a backend API + AI agent + automation + web scraper built with Python and FastAPI. <role>
-You are an expert Community Manager and Growth Hacker for an "AI Instruction File Generator" platform. You specialize in providing massive upfront value in online communities (Reddit, X, LinkedIn) without sounding spammy or overly promotional.
-</role>
+## Boundaries
 
-<objective>
-Analyze the provided social media post. If the user is genuinely struggling with AI system prompts, autonomous agents, or LLM instructions, draft a highly contextual, helpful, and empathetic reply. Subtly mention the free tool as a natural next step.
-</objective>
+### This Agent Does:
+- Scan Twitter via API for posts matching persona topics
+- Scan Reddit via JSON API / search for relevant posts
+- Generate human-like replies using Claude AI with configurable personas
+- Auto-post approved replies to Twitter (with random delays)
+- Provide a web dashboard for persona management, run configuration, and reply review
+- Send email reports after posting runs
+- Expose /api/v1/status for orchestra integration
 
-<instructions>
-1. Analyze the intent of the user's post to understand their specific frustration or goal regarding AI prompts.
-2. Write 2-3 sentences that directly answer their question or solve a piece of their problem immediately in the comment.
-3. In the final sentence, casually mention the "AI Instruction File Generator." https://ai-agent-md.com/ Frame it as a free resource you built that solves this exact problem.
-</instructions>
+### This Agent Does NOT:
+- Scrape LinkedIn directly (uses email notifications or manual input)
+- Auto-post to Reddit or LinkedIn (manual copy-paste only)
+- Manage other agents' data or configuration
+- Handle user accounts or multi-tenancy (single-user tool)
 
-<constraints>
-- Do not use marketing jargon (e.g., "game-changer," "revolutionary," "synergy").
-- Do not paste raw links unless requested; use conversational breadcrumbs like "I built a free instruction generator for this if you want to check it out on my profile."
-- If the post is not a match for our tool, output <skip>true</skip>.
-- Limit the total response to 4 sentences maximum.
-</constraints>
+### Never Do:
+- Never commit .env files or secrets
+- Never modify files outside this project directory
+- Never push without approval
+- Never auto-post without user review/approval first
 
-<output_format>
-Provide your response inside <draft_reply> tags. If the post is irrelevant, provide <skip>true</skip> instead.
-</output_format>
+## Data Ownership
+- This agent owns: data/personas/, data/runs/, data/reports/, data/scans/
+- This agent reads from: Twitter API, Reddit JSON API, Anthropic Claude API
+- This agent never writes to other agents' data
 
 ## Workflow
 
@@ -398,26 +402,34 @@ Before deploying, verify:
 - [ ] File upload validation (type, size, content)
 - [ ] Cookies use `httpOnly`, `secure`, `SameSite` flags
 
-## Boundaries
+## API Contract (for Orchestra)
+```
+GET /health → {"status": "ok"}
+GET /api/v1/status → {agent_name, status, last_run, pending_reviews, total_runs, total_posted}
+```
 
-### Always Ask Before
+## Always Ask Before
 
-- **Deploying to the live site**
-- **Deleting files, data, or branches**
-- **Pushing code to the remote repository**
-- **Adding new tools, libraries, or frameworks**
-- **Changing the design system (colors, fonts, spacing)**
+- Deploying to the live site
+- Deleting files, data, or branches
+- Pushing code to the remote repository
+- Adding new tools, libraries, or frameworks
+- Changing the design system (colors, fonts, spacing)
 
-### Never Do
-
-- Never commit `.env` files or secrets
-- Never expose detailed error messages to end users
-- Never skip linting or pre-commit hooks
-- Never run destructive commands without explicit approval
-
-### Always Do
+## Always Do
 
 - Read existing code before modifying it
 - Explain changes before making them if they affect more than 3 files
 - Match existing code style and conventions
 - Test changes before suggesting deploy
+
+## Audit Checklist (run monthly)
+- [ ] Remove unused imports and variables (autoflake, vulture)
+- [ ] Update requirements.txt (pip freeze)
+- [ ] Update this CLAUDE.md if role/boundaries changed
+- [ ] Run full test suite: pytest tests/ -v
+- [ ] Check for hardcoded secrets: grep -r "sk-\|password\s*=" --include="*.py"
+- [ ] Review TODOs in code: grep -r "TODO\|FIXME" --include="*.py"
+- [ ] Check for dead code (commented-out blocks, unreachable branches)
+- [ ] Verify .env in .gitignore
+- [ ] Run pip audit for security vulnerabilities

@@ -1,11 +1,68 @@
+from __future__ import annotations
+
 import json
+import logging
 import re
-from anthropic import Anthropic
 from schemas import PostData
 from config import settings
-from agent.prompt_template import SYSTEM_PROMPT, build_user_prompt
+from agent.prompt_template import build_user_prompt, build_system_prompt, build_outreach_prompt
 
-client = Anthropic(api_key=settings.anthropic_api_key)
+logger = logging.getLogger(__name__)
+
+
+def _get_provider() -> str:
+    """Decide which LLM provider to use."""
+    if settings.llm_provider == "openrouter":
+        return "openrouter"
+    if settings.llm_provider == "anthropic":
+        return "anthropic"
+    # auto: prefer openrouter if key exists, else anthropic
+    if settings.openrouter_api_key:
+        return "openrouter"
+    return "anthropic"
+
+
+def _call_llm(*, system: str, user_msg: str, max_tokens: int, model: str | None = None) -> str:
+    """Send a chat completion to whichever provider is active."""
+    provider = _get_provider()
+    model = model or settings.claude_model
+
+    # OpenRouter uses short IDs like "anthropic/claude-sonnet-4" (no date suffix)
+    if provider == "openrouter" and "/" not in model:
+        # Strip date suffix (e.g. "claude-opus-4-20250514" → "claude-opus-4")
+        clean = re.sub(r"-\d{8}$", "", model)
+        model = f"anthropic/{clean}"
+
+    if provider == "openrouter":
+        from openai import OpenAI
+
+        client = OpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1",
+        )
+        response = client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user_msg},
+            ],
+        )
+        logger.info("LLM call via OpenRouter (model=%s)", model)
+        return response.choices[0].message.content.strip()
+
+    # Anthropic (fallback)
+    from anthropic import Anthropic
+
+    client = Anthropic(api_key=settings.anthropic_api_key)
+    response = client.messages.create(
+        model=model,
+        max_tokens=max_tokens,
+        system=system,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    logger.info("LLM call via Anthropic (model=%s)", model)
+    return response.content[0].text.strip()
 
 BANNED_WORDS = [
     "game-changer", "game changer", "revolutionary", "synergy",
@@ -61,7 +118,20 @@ def _parse_response(raw_text: str) -> dict:
     }
 
 
-async def generate_reply(post: PostData) -> dict:
+async def generate_outreach(lead: dict, persona: dict) -> str:
+    """
+    Generate a cold outreach DM for a GitHub lead.
+
+    Returns a plain string (the draft message).
+    Different from generate_reply() which returns {skip, draft_reply, reasoning}.
+    """
+    system_prompt, user_prompt = build_outreach_prompt(persona, lead)
+
+    raw = _call_llm(system=system_prompt, user_msg=user_prompt, max_tokens=400)
+    return _clean_reply(raw)
+
+
+async def generate_reply(post: PostData, persona: Optional[dict] = None) -> dict:
     user_prompt = build_user_prompt(
         platform=post.platform.value,
         title=post.title,
@@ -70,14 +140,11 @@ async def generate_reply(post: PostData) -> dict:
         author=post.author,
     )
 
-    response = client.messages.create(
-        model=settings.claude_model,
-        max_tokens=settings.max_reply_tokens,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_prompt}],
-    )
+    system_prompt = build_system_prompt(persona)
 
-    raw_text = response.content[0].text.strip()
+    raw_text = _call_llm(
+        system=system_prompt, user_msg=user_prompt, max_tokens=settings.max_reply_tokens
+    )
     result = _parse_response(raw_text)
 
     draft = result.get("draft_reply")

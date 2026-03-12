@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Media Library{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="margin:0">📸 Media Library</h1>
+    <label style="background:#0f766e; color:white; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:500; display:inline-block">
+        Upload File
+        <input type="file" name="file" id="file-input" accept="image/*,video/*" style="display:none">
+    </label>
+</div>
+
+<div class="hint" style="margin-bottom:20px">
+    Upload product screenshots or demo videos here. Then select them in persona settings to attach to all replies.
+</div>
+
+{% if media_files %}
+<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:16px">
+    {% for file in media_files %}
+    <div class="card" style="padding:0; overflow:hidden">
+        <div style="aspect-ratio:16/9; background:#f0f0f0; display:flex; align-items:center; justify-content:center; position:relative">
+            {% if file.filename.lower().endswith('.png') or file.filename.lower().endswith('.jpg') or file.filename.lower().endswith('.jpeg') or file.filename.lower().endswith('.gif') or file.filename.lower().endswith('.webp') %}
+                <img src="/{{ file.path }}" alt="{{ file.filename }}" style="width:100%; height:100%; object-fit:cover">
+            {% elif file.filename.lower().endswith('.mp4') or file.filename.lower().endswith('.mov') or file.filename.lower().endswith('.webm') %}
+                <div style="text-align:center; color:#999">
+                    <div style="font-size:32px">🎬</div>
+                    <div style="font-size:12px; margin-top:8px">Video</div>
+                </div>
+            {% else %}
+                <div style="text-align:center; color:#999">
+                    <div style="font-size:32px">📄</div>
+                    <div style="font-size:12px; margin-top:8px">Media</div>
+                </div>
+            {% endif %}
+            <button type="button" class="delete-btn" onclick="deleteMedia('{{ file.filename }}')" style="position:absolute; top:4px; right:4px; background:rgba(255,0,0,0.7); color:white; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-size:12px">✕</button>
+        </div>
+        <div style="padding:12px">
+            <p style="margin:0 0 4px 0; font-weight:500; word-break:break-all">{{ file.filename }}</p>
+            <p style="margin:0; font-size:12px; color:#666">{{ (file.size / 1024) | round(1) }} KB</p>
+            <div style="margin-top:8px; font-size:12px; color:#0f766e; word-break:break-all">
+                <code>{{ file.path }}</code>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div style="text-align:center; padding:40px 20px; background:#f9f9f9; border-radius:8px">
+    <p style="font-size:48px; margin:0">📸</p>
+    <p style="margin:12px 0 0 0; color:#666">No media files yet</p>
+    <p style="margin:8px 0; font-size:14px; color:#999">Upload a screenshot or video to attach to replies</p>
+</div>
+{% endif %}
+
+<script>
+document.getElementById('file-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/dashboard/media/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Error: ' + error.error);
+        }
+    } catch (e) {
+        alert('Upload failed: ' + e.message);
+    }
+});
+
+async function deleteMedia(filename) {
+    if (!confirm(`Delete ${filename}?`)) return;
+
+    try {
+        const response = await fetch(`/dashboard/media/${filename}`, {
+            method: 'DELETE',
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Error: ' + error.error);
+        }
+    } catch (e) {
+        alert('Delete failed: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

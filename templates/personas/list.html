@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Personas{% endblock %}
+{% block content %}
+<div class="flex-between mb-6">
+    <div>
+        <h1>Personas</h1>
+        <p class="subtitle">Manage your saved personas for different campaigns</p>
+    </div>
+    <a href="/dashboard/personas/new" class="btn btn-primary">Create Persona</a>
+</div>
+
+<div id="persona-list">
+{% if personas %}
+{% for p in personas %}
+<div class="persona-card" id="persona-{{ p.id }}">
+    <div class="flex-between">
+        <div class="name">{{ p.name }}</div>
+        <div class="flex gap-2">
+            {% if p.is_default %}
+            <span class="badge badge-primary">Default</span>
+            {% endif %}
+            <a href="/dashboard/personas/{{ p.id }}/edit" class="btn btn-outline btn-sm">Edit</a>
+            <button class="btn btn-danger btn-sm"
+                    hx-delete="/dashboard/personas/{{ p.id }}"
+                    hx-target="#persona-{{ p.id }}"
+                    hx-swap="outerHTML"
+                    hx-confirm="Delete '{{ p.name }}'?">Delete</button>
+        </div>
+    </div>
+    <div class="meta mt-4">
+        <span>Tone: {{ p.tone }}</span>
+        <span>Audience: {{ p.target_audience[:50] }}{% if p.target_audience|length > 50 %}...{% endif %}</span>
+        <span>Platforms: {{ p.platforms | join(', ') }}</span>
+        <span>Product: {{ p.product_name }}</span>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <div class="icon">&#127917;</div>
+    <p>No personas yet. Create one to define how the agent responds.</p>
+    <a href="/dashboard/personas/new" class="btn btn-primary mt-4">Create First Persona</a>
+</div>
+{% endif %}
+</div>
+{% endblock %}

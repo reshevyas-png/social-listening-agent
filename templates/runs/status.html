@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Run in Progress{% endblock %}
+{% block content %}
+<h1 class="mb-4"><span class="pulse-dot"></span> Run in Progress</h1>
+
+<div class="card" id="run-status"
+     hx-get="/dashboard/runs/{{ run_id }}/status"
+     hx-trigger="every 3s"
+     hx-swap="innerHTML">
+    {% include "partials/scan_progress.html" %}
+</div>
+
+<div class="card" style="margin-top:16px;text-align:center;color:var(--text-secondary);font-size:13px">
+    <p>Don't close this page — we're scanning and generating replies in the background.</p>
+    <p style="margin-top:4px">You'll be redirected to the review page when it's done.</p>
+</div>
+{% endblock %}

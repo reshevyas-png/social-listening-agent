@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Review Run{% endblock %}
+{% block content %}
+<div class="flex-between mb-4">
+    <div>
+        <h1>Review Replies</h1>
+        <p class="subtitle">{{ persona_name or 'Default Persona' }} &middot; {{ run.platforms | join(', ') }} &middot; {{ run.created_at[:16] }}</p>
+    </div>
+    <div class="flex gap-2">
+        {% if run.status == 'review' %}
+        <span class="badge badge-warning" style="font-size:14px;padding:6px 12px">Needs Review</span>
+        {% elif run.status == 'complete' %}
+        <span class="badge badge-success" style="font-size:14px;padding:6px 12px">Complete</span>
+        {% elif run.status == 'posting' %}
+        <span class="badge badge-primary" style="font-size:14px;padding:6px 12px">Posting...</span>
+        {% elif run.status == 'failed' %}
+        <span class="badge badge-danger" style="font-size:14px;padding:6px 12px">Failed</span>
+        {% endif %}
+    </div>
+</div>
+
+{% include "partials/review_banner.html" %}
+
+<div id="replies-list">
+{% for reply in run.replies %}
+{% include "partials/reply_card.html" %}
+{% endfor %}
+</div>
+
+{% if skipped_replies %}
+<h3 class="mt-6 mb-4">Skipped ({{ skipped_replies | length }})</h3>
+{% for reply in skipped_replies %}
+<div class="reply-card skipped">
+    <div class="source">
+        <span class="badge badge-muted">{{ reply.source_platform }}</span>
+        @{{ reply.source_author }}
+        <a href="{{ reply.source_url }}" target="_blank">View</a>
+    </div>
+    <div class="original">{{ reply.source_text[:200] }}{% if reply.source_text|length > 200 %}...{% endif %}</div>
+    <div class="reasoning">Skipped: {{ reply.reasoning }}</div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+<div id="review-banner">
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="number">{{ total_replies }}</div>
+            <div class="label">Total Replies</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" style="color:var(--success)">{{ approved_count }}</div>
+            <div class="label">Approved</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" style="color:var(--danger)">{{ rejected_count }}</div>
+            <div class="label">Rejected</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" style="color:var(--primary)">{{ posted_count }}</div>
+            <div class="label">Posted</div>
+        </div>
+    </div>
+
+    {% if run.status == 'review' and approved_count > 0 %}
+    {% set has_twitter = 'twitter' in run.platforms %}
+    {% set has_non_twitter = run.platforms | reject('equalto', 'twitter') | list | length > 0 %}
+    <div class="card mb-4" style="background:var(--success-bg);border-color:var(--success)">
+        <div class="flex-between">
+            <div>
+                <strong>{{ approved_count }} replies approved</strong>
+                {% if has_twitter and has_non_twitter %}
+                <span class="text-sm text-muted" style="margin-left:8px">Twitter replies will auto-post. Reddit/LinkedIn: use Copy button.</span>
+                {% elif has_twitter %}
+                <span class="text-sm text-muted" style="margin-left:8px">Ready to post on Twitter</span>
+                {% else %}
+                <span class="text-sm text-muted" style="margin-left:8px">No auto-post available. Use the Copy button on each reply.</span>
+                {% endif %}
+            </div>
+            {% if has_twitter %}
+            <form method="POST" action="/dashboard/runs/{{ run.run_id }}/post" id="post-form">
+                <button type="submit" id="post-btn" class="btn btn-success btn-lg">Post Twitter Replies</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% if has_twitter %}
+    <script>
+    document.getElementById('post-form').addEventListener('submit', function() {
+        var btn = document.getElementById('post-btn');
+        btn.classList.add('loading');
+        btn.innerHTML = '<span class="spinner spinner-sm"></span> Posting...';
+    });
+    </script>
+    {% endif %}
+    {% endif %}
+</div>

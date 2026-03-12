@@ -7,6 +7,7 @@ class Platform(str, Enum):
     reddit = "reddit"
     twitter = "twitter"
     linkedin = "linkedin"
+    nextdoor = "nextdoor"
 
 
 class AnalyzeRequest(BaseModel):
