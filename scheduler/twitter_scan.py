@@ -64,6 +64,76 @@ def _save_scan_result(result: dict) -> str:
     return filename
 
 
+def _get_posting_client() -> tweepy.Client | None:
+    """Get a tweepy client with write access (OAuth 1.0a). Returns None if not configured."""
+    if not all([
+        settings.twitter_api_key,
+        settings.twitter_api_secret,
+        settings.twitter_access_token,
+        settings.twitter_access_secret,
+    ]):
+        return None
+    return tweepy.Client(
+        consumer_key=settings.twitter_api_key,
+        consumer_secret=settings.twitter_api_secret,
+        access_token=settings.twitter_access_token,
+        access_token_secret=settings.twitter_access_secret,
+    )
+
+
+def _get_api_client() -> tweepy.API | None:
+    """Get v1.1 API client for media uploads. Returns None if not configured."""
+    if not all([
+        settings.twitter_api_key,
+        settings.twitter_api_secret,
+        settings.twitter_access_token,
+        settings.twitter_access_secret,
+    ]):
+        return None
+    auth = tweepy.OAuth1UserHandler(
+        settings.twitter_api_key,
+        settings.twitter_api_secret,
+        settings.twitter_access_token,
+        settings.twitter_access_secret,
+    )
+    return tweepy.API(auth)
+
+
+def _post_reply(
+    posting_client: tweepy.Client,
+    tweet_id: str,
+    reply_text: str,
+    api_client: tweepy.API | None = None,
+    attachment_path: Optional[str] = None,
+) -> Optional[dict]:
+    """Post a reply to a tweet, optionally with media. Returns the response or None on failure."""
+    try:
+        # Upload media if provided
+        media_ids = []
+        if attachment_path and api_client and Path(attachment_path).exists():
+            try:
+                media = api_client.media_upload(attachment_path)
+                media_ids = [str(media.media_id_string)]
+                logger.info(f"Uploaded media: {attachment_path} -> media_id: {media.media_id_string}")
+            except Exception as e:
+                logger.warning(f"Failed to upload media {attachment_path}: {e}")
+
+        response = posting_client.create_tweet(
+            text=reply_text,
+            in_reply_to_tweet_id=tweet_id,
+            media_ids=media_ids if media_ids else None,
+        )
+        posted_id = response.data["id"] if response.data else None
+        logger.info(f"Posted reply to tweet {tweet_id} -> reply ID: {posted_id}")
+        return {"posted": True, "reply_tweet_id": str(posted_id)}
+    except tweepy.Forbidden as e:
+        logger.error(f"Forbidden posting reply to {tweet_id}: {e}")
+        return {"posted": False, "post_error": f"Forbidden: {e}"}
+    except tweepy.TweepyException as e:
+        logger.error(f"Failed posting reply to {tweet_id}: {e}")
+        return {"posted": False, "post_error": str(e)}
+
+
 async def run_twitter_scan() -> dict:
     logger.info("Starting scheduled Twitter scan (targeted strategy)")
 
@@ -71,7 +141,17 @@ async def run_twitter_scan() -> dict:
         logger.error("TWITTER_BEARER_TOKEN not set, skipping scan")
         return {"error": "Missing Twitter bearer token"}
 
+    # Read client (bearer token)
     client = tweepy.Client(bearer_token=settings.twitter_bearer_token)
+
+    # Write client (OAuth 1.0a) — None if not configured
+    posting_client = _get_posting_client()
+    can_post = posting_client is not None and settings.auto_post_replies
+    if can_post:
+        logger.info("Auto-posting enabled — replies will be posted live")
+    else:
+        logger.info("Draft mode — replies will be generated but NOT posted")
+
     seen_ids = _load_seen_ids()
     scan_started = datetime.now(timezone.utc).isoformat()
 
@@ -126,6 +206,13 @@ async def run_twitter_scan() -> dict:
     # Deduplicate against previously seen
     new_tweets = [t for t in all_tweets if t["id"] not in seen_ids]
 
+    # Apply min_followers filter from persona if available
+    min_followers = int(persona.get("min_followers", 0) or 0) if persona else 0
+    if min_followers > 0:
+        before = len(new_tweets)
+        new_tweets = [t for t in new_tweets if t.get("author_followers", 0) >= min_followers]
+        logger.info(f"Follower filter ({min_followers:,}+): {before} -> {len(new_tweets)} tweets")
+
     # Sort by engagement — high visibility tweets first
     new_tweets.sort(key=lambda t: t["likes"] + t["replies"], reverse=True)
 
@@ -144,11 +231,12 @@ async def run_twitter_scan() -> dict:
 
     # Generate replies with random delays to look natural
     results = []
+    posted_count = 0
     for idx, tweet in enumerate(tweets_to_process):
         # Random delay between replies (30s-3min) to avoid looking like a bot
         if idx > 0:
             delay = random.uniform(30, 180)
-            logger.info(f"Waiting {delay:.0f}s before next reply ({idx+1}/{len(new_tweets)})")
+            logger.info(f"Waiting {delay:.0f}s before next reply ({idx+1}/{len(tweets_to_process)})")
             await asyncio.sleep(delay)
 
         post = PostData(
@@ -160,7 +248,7 @@ async def run_twitter_scan() -> dict:
         )
         try:
             reply = await generate_reply(post)
-            results.append({
+            result_entry = {
                 "tweet_id": tweet["id"],
                 "tweet_text": tweet["text"],
                 "author": tweet["author"],
@@ -173,7 +261,18 @@ async def run_twitter_scan() -> dict:
                 "skip": reply["skip"],
                 "draft_reply": reply.get("draft_reply"),
                 "reasoning": reply.get("reasoning"),
-            })
+                "posted": False,
+            }
+
+            # Auto-post if enabled and reply wasn't skipped
+            if can_post and not reply["skip"] and reply.get("draft_reply"):
+                post_result = _post_reply(posting_client, tweet["id"], reply["draft_reply"])
+                if post_result:
+                    result_entry.update(post_result)
+                    if post_result.get("posted"):
+                        posted_count += 1
+
+            results.append(result_entry)
         except Exception as e:
             logger.error(f"Reply failed for tweet {tweet['id']}: {e}")
             results.append({
@@ -188,20 +287,23 @@ async def run_twitter_scan() -> dict:
     _save_seen_ids(seen_ids | new_ids)
 
     # Save scan result
+    replies_generated = len([r for r in results if not r.get("skip") and not r.get("error")])
     scan_result = {
         "scan_started": scan_started,
         "scan_completed": datetime.now(timezone.utc).isoformat(),
         "total_found": len(all_tweets),
         "new_tweets": len(new_tweets),
         "skipped_duplicate": len(all_tweets) - len(new_tweets),
-        "replies_generated": len([r for r in results if not r.get("skip") and not r.get("error")]),
+        "replies_generated": replies_generated,
+        "replies_posted": posted_count,
         "replies_skipped": len([r for r in results if r.get("skip")]),
+        "auto_post_enabled": can_post,
         "errors": errors,
         "results": results,
     }
 
     filename = _save_scan_result(scan_result)
-    logger.info(f"Scan complete. Saved to {filename}")
+    logger.info(f"Scan complete. {replies_generated} generated, {posted_count} posted. Saved to {filename}")
 
     # Generate report and email
     from scheduler.report import save_report, send_email_report
